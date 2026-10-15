@@ -109,6 +109,10 @@ input[type=text]:focus,select:focus{border-color:var(--accent)}
 .aff{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:4px}
 .aff .bar{flex:1;height:4px;border-radius:2px;background:var(--chip);overflow:hidden;max-width:110px}
 .aff .bar i{display:block;height:100%;background:var(--accent)}
+.because{font-size:12.5px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.section .note{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+.followups{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.followups .lbl{font-size:13px;color:var(--muted);margin-right:2px}
 .reason{grid-column:1/-1;font-size:14px;margin:6px 0 0;overflow-wrap:anywhere}
 .tags{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .tag{font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted)}
@@ -156,6 +160,7 @@ footer p{margin:0 0 10px}
 
     <div class="section">
       <div class="section-head"><label for="in-loved">Games you loved</label><span class="count" id="count-loved"></span></div>
+      <p class="note">5★ games weigh more than 4★ in the Qloo signal. Tap a game's stars to switch.</p>
       <form class="addrow" data-section="loved" autocomplete="off">
         <input type="text" id="in-loved" placeholder="e.g. Hollow Knight" maxlength="80">
         <button type="submit" class="btn">Add</button>
@@ -241,7 +246,7 @@ var PRESETS = [
   {loved:['The Last of Us','God of War','Red Dead Redemption 2'], want:['Ghost of Tsushima','Horizon Zero Dawn','Control','Disco Elysium']},
   {loved:['Stardew Valley','Animal Crossing: New Horizons','A Short Hike'], want:['Spiritfarer','Unpacking','Slime Rancher','Celeste']}
 ];
-var INTENT_LABEL = {pick:'Pick from my pile', discover:'Find something new', taste:'Taste profile', postcredits:'Post-credits', chat:'Ask'};
+var INTENT_LABEL = {pick:'Pick from my pile', discover:'Find something new', taste:'Taste profile', postcredits:'Post-credits', whynot:'Why not?', chat:'Ask'};
 var CROSS_LABEL = {movie:'Film', tv_show:'Series', artist:'Music', album:'Music', book:'Book', podcast:'Podcast'};
 
 // ---------- state ----------
@@ -382,6 +387,10 @@ function renderAsk(){
     p.textContent = g; p.hidden = !g;
   });
   $('focus-game').disabled = !!running || !lib.loved.length;
+  document.querySelectorAll('.whynot-chip').forEach(function(b){
+    var id = +b.dataset.focus;
+    b.disabled = !!running || !!guard('whynot') || !lib.want.some(function(g){ return g.id===id; });
+  });
   $('cancel').hidden = !running;
 }
 function render(){ renderChips(); renderFocus(); renderAsk(); }
@@ -413,6 +422,7 @@ function gameCard(it){
   if(it.in_library) badges.push(el('span',{class:'badge pile', text:'In your list'}));
   var info = [el('h3',{text:it.name||'Untitled'})];
   if(metaBits.length) info.push(el('div',{class:'meta', text:metaBits.join(' · ')}));
+  if(Array.isArray(it.because) && it.because.length) info.push(el('div',{class:'because', text:'Closest to: '+it.because.map(String).join(', ')}));
   if(badges.length) info.push(el('div',{class:'badges'}, badges));
   if(typeof it.affinity==='number'){
     var pct = Math.max(0, Math.min(1, it.affinity));
@@ -513,6 +523,7 @@ function handleEvent(t, ev){
       break;
     case 'games':
       var items = Array.isArray(ev.items) ? ev.items : [];
+      t.cards = (t.cards||[]).concat(items);
       var wrap = el('div',null,[el('h3',{class:'block-title', text:ev.title || 'Games'})]);
       wrap.appendChild(items.length ? el('div',{class:'cards'}, items.map(gameCard)) : el('p',{class:'empty', text:'No games came back for this one.'}));
       t.body.appendChild(wrap); break;
@@ -527,6 +538,26 @@ function handleEvent(t, ev){
     case 'done': t.done = true; break;
     default: break; // unknown events still show in the raw log
   }
+}
+
+// "Why not X?" follow-ups under a finished pick: every other Want game, max 4.
+function addWhyNot(t){
+  var cards = t.cards || [];
+  if(!cards.length) return;
+  var pickedIds = cards.map(function(c){ return c.igdb_id; });
+  var pickedNames = cards.map(function(c){ return norm(String(c.name||'')); });
+  var others = lib.want.filter(function(g){ return pickedIds.indexOf(g.id)<0 && pickedNames.indexOf(norm(g.name))<0; }).slice(0,4);
+  if(!others.length) return;
+  var row = el('div',{class:'followups', role:'group', 'aria-label':'Ask why another game was not picked'},[el('span',{class:'lbl', text:'Ask Scout:'})]);
+  others.forEach(function(g){
+    row.appendChild(el('button',{type:'button', class:'btn whynot-chip', 'data-focus':String(g.id), text:'Why not '+g.name+'?',
+      onclick:function(){
+        if(running || !lib.want.some(function(x){ return x.id===g.id; })) return;
+        ask('whynot', 'Why not '+g.name+'?', {focus:g.id});
+      }}));
+  });
+  t.body.appendChild(row);
+  renderAsk();
 }
 
 // ---------- SSE over fetch ----------
@@ -572,7 +603,7 @@ function ask(intent, question, extra){
   })
   .then(function(){
     if(t.hadError) finishTurn(t, 'Stopped with an error', 'bad');
-    else if(t.done) finishTurn(t, 'Done', 'end');
+    else if(t.done){ finishTurn(t, 'Done', 'end'); if(intent==='pick') stick(function(){ addWhyNot(t); }); }
     else { stick(function(){ t.body.appendChild(errorBlock('The connection closed before Scout finished. Try again.', 'stream ended without a done event')); }); finishTurn(t, 'Interrupted', 'bad'); }
   })
   .catch(function(err){
