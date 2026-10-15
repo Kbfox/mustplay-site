@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MustPlay Scout</title>
+<meta name="description" content="A taste agent that picks your next game from your own pile. Powered by Qloo, same backend as the MustPlay iPhone app.">
+<style>
+:root{
+  --accent:#6d4ff7; --accent-ink:#fff; --accent-soft:rgba(109,79,247,.10); --accent-line:rgba(109,79,247,.35);
+  --bg:#f6f5fa; --panel:#fff; --ink:#15131c; --muted:#6b6880; --line:#e4e1ee; --chip:#f0eef7;
+  --ok:#1f9d55; --warn:#b7791f; --err:#c53030; --err-soft:rgba(197,48,48,.08);
+  --shadow:0 1px 2px rgba(20,16,40,.06),0 4px 16px rgba(20,16,40,.05);
+  --radius:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --accent:#8f78ff; --accent-ink:#fff; --accent-soft:rgba(143,120,255,.14); --accent-line:rgba(143,120,255,.45);
+    --bg:#0f0e14; --panel:#1a1922; --ink:#eeecf5; --muted:#a19eb4; --line:#2c2a38; --chip:#25232f;
+    --ok:#48bb78; --warn:#ecc94b; --err:#fc8181; --err-soft:rgba(252,129,129,.10);
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;overflow-x:hidden}
+a{color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 16px 64px}
+header h1{font-size:30px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em}
+header h1 span{color:var(--accent)}
+header p{margin:0 0 8px;color:var(--muted);max-width:720px}
+.links{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px}
+.grid2{display:grid;gap:16px;margin-top:20px}
+@media (min-width:900px){.grid2{grid-template-columns:1fr 1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);min-width:0}
+.panel h2{font-size:17px;margin:0 0 4px}
+.panel .sub{font-size:13.5px;color:var(--muted);margin:0 0 12px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;font-size:14px}
+.btn:hover:not(:disabled){border-color:var(--accent-line);background:var(--accent-soft)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--accent)}
+.btn:disabled{opacity:.45}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.section{margin-top:12px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.section-head label{font-weight:600;font-size:14.5px}
+.section-head .count{font-size:12.5px;color:var(--muted)}
+.addrow{display:flex;gap:8px;margin:6px 0 8px}
+.addrow input{flex:1;min-width:0}
+input[type=text],select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:15px;min-width:0;max-width:100%}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:32px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 11px;font-size:14px;max-width:100%}
+.chip .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip button{border:0;background:transparent;border-radius:999px;padding:2px 7px;font-size:13px;color:var(--muted);line-height:1.3}
+.chip button:hover{background:var(--accent-soft);color:var(--ink)}
+.chip .stars{color:var(--warn);font-weight:600;font-size:12.5px}
+.chip .q{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
+.empty{font-size:13.5px;color:var(--muted);padding:4px 0}
+.asks{display:grid;gap:10px}
+.ask{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
+.ask .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ask .row > input,.ask .row > select{flex:1 1 180px}
+.ask .hint{font-size:12.5px;color:var(--warn);margin:0}
+.ask .what{font-size:13px;color:var(--muted);margin:0}
+.ask .lbl{font-size:13px;color:var(--muted)}
+.ask-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:14px}
+.toggle{display:inline-flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer}
+.toggle input{accent-color:var(--accent);width:16px;height:16px}
+#transcript{margin-top:24px;display:grid;gap:22px}
+.turn{display:grid;gap:10px;min-width:0}
+.q-bubble{justify-self:end;max-width:min(560px,92%);background:var(--accent);color:var(--accent-ink);border-radius:16px 16px 4px 16px;padding:9px 14px}
+.q-bubble .intent{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.answer{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);display:grid;gap:14px;min-width:0}
+.answer-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.answer-head .who{font-weight:700}
+.answer-head .state{font-size:13px;color:var(--muted)}
+.spin{width:14px;height:14px;border:2px solid var(--accent-line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+.timeline{list-style:none;margin:0;padding:0 0 0 4px;display:grid;gap:4px;font-size:14px}
+.timeline li{display:flex;gap:10px;align-items:baseline;position:relative;padding-left:16px;min-width:0}
+.timeline li::before{content:"";position:absolute;left:0;top:.55em;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.timeline li.live::before{animation:pulse 1s ease-in-out infinite}
+.timeline li.end::before{background:var(--ok)}
+.timeline li.bad::before{background:var(--err)}
+@keyframes pulse{50%{opacity:.25}}
+.timeline .t{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);min-width:44px;flex:none}
+.timeline .s{min-width:0;overflow-wrap:anywhere}
+.block-title{font-size:15px;font-weight:700;margin:0 0 8px}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(290px,100%),1fr))}
+@media (min-width:1000px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:84px minmax(0,1fr);gap:4px 12px;align-content:start;background:var(--panel);min-width:0}
+.cover{width:84px;aspect-ratio:3/4;border-radius:8px;overflow:hidden;background:var(--chip);grid-row:span 2}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;font-size:11.5px;font-weight:600;color:var(--muted);background:linear-gradient(160deg,var(--accent-soft),var(--chip))}
+.card h3{font-size:15.5px;margin:0;line-height:1.25;overflow-wrap:anywhere}
+.meta{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.badge{font-size:11px;font-weight:600;border-radius:6px;padding:1px 6px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.badge.pile{background:rgba(31,157,85,.12);color:var(--ok)}
+.aff{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.aff .bar{flex:1;height:4px;border-radius:2px;background:var(--chip);overflow:hidden;max-width:110px}
+.aff .bar i{display:block;height:100%;background:var(--accent)}
+.reason{grid-column:1/-1;font-size:14px;margin:6px 0 0;overflow-wrap:anywhere}
+.tags{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted)}
+.taste{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:12px;padding:14px 16px}
+.taste .summary{font-size:17px;line-height:1.45;margin:0 0 12px;font-weight:500}
+.cloud{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.cloud span{color:var(--accent);font-weight:600;line-height:1.2}
+.msg{background:var(--chip);border-radius:16px 16px 16px 4px;padding:10px 14px;max-width:min(640px,100%);justify-self:start;overflow-wrap:anywhere;white-space:pre-wrap}
+.err{border:1px solid var(--err);background:var(--err-soft);border-radius:12px;padding:10px 14px;font-size:14.5px}
+.err strong{color:var(--err)}
+.err details{margin-top:6px;font-size:12.5px;color:var(--muted)}
+.err pre,.raw pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;margin:6px 0 0}
+.raw{display:none;border-top:1px dashed var(--line);padding-top:10px}
+.show-raw .raw{display:block}
+.raw h4{font-size:12.5px;margin:0;color:var(--muted);font-weight:600}
+.raw pre{max-height:320px;overflow:auto;background:var(--bg);border-radius:8px;padding:8px 10px}
+.welcome{color:var(--muted);font-size:14.5px;text-align:center;padding:10px}
+footer{margin-top:40px;font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:18px;max-width:780px}
+footer h2{font-size:15px;color:var(--ink);margin:0 0 6px}
+footer p{margin:0 0 10px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>MustPlay <span>Scout</span></h1>
+  <p>A taste agent that picks your next game from your own pile. This page talks to the same agent as the iPhone app.</p>
+  <div class="links">
+    <a href="https://apps.apple.com/app/id6816116027">MustPlay on the App Store</a>
+    <a href="https://github.com/Kbfox/MustPlay">Source on GitHub</a>
+  </div>
+</header>
+
+<div class="grid2">
+  <section class="panel" aria-labelledby="lib-h">
+    <h2 id="lib-h">1. Your list</h2>
+    <p class="sub">Scout reasons over this list. Start from a sample or type your own games. Saved in this browser only.</p>
+    <div class="presets" role="group" aria-label="Sample libraries">
+      <button type="button" class="btn" data-preset="0">Indie roguelikes</button>
+      <button type="button" class="btn" data-preset="1">Cinematic AAA</button>
+      <button type="button" class="btn" data-preset="2">Cozy</button>
+      <button type="button" class="btn ghost" id="clear-lib">Clear all</button>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><label for="in-loved">Games you loved</label><span class="count" id="count-loved"></span></div>
+      <form class="addrow" data-section="loved" autocomplete="off">
+        <input type="text" id="in-loved" placeholder="e.g. Hollow Knight" maxlength="80">
+        <button type="submit" class="btn">Add</button>
+      </form>
+      <div class="chips" id="chips-loved" aria-live="polite"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><label for="in-want">Want to play</label><span class="count" id="count-want"></span></div>
+      <form class="addrow" data-section="want" autocomplete="off">
+        <input type="text" id="in-want" placeholder="e.g. Dead Cells" maxlength="80">
+        <button type="submit" class="btn">Add</button>
+      </form>
+      <div class="chips" id="chips-want" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="ask-h">
+    <h2 id="ask-h">2. Ask Scout</h2>
+    <p class="sub">Each answer takes about 10 to 20 seconds while the agent looks things up on Qloo. Watch the steps as they happen.</p>
+    <div class="asks">
+      <div class="ask">
+        <div class="row"><button type="button" class="btn primary" data-intent="pick">Pick from my pile</button></div>
+        <p class="what">Chooses one game from your Want to play list and says why.</p>
+        <p class="hint" data-hint="pick" hidden></p>
+      </div>
+      <div class="ask">
+        <div class="row">
+          <button type="button" class="btn primary" data-intent="discover">Find me something new</button>
+          <label class="sr" for="discover-extra">Optional constraint</label>
+          <input type="text" id="discover-extra" placeholder="short and cozy, on Switch" maxlength="120">
+        </div>
+        <p class="what">Games you don't own yet, matched to your taste. The constraint is optional.</p>
+        <p class="hint" data-hint="discover" hidden></p>
+      </div>
+      <div class="ask">
+        <div class="row"><button type="button" class="btn primary" data-intent="taste">What's my taste?</button></div>
+        <p class="what">A taste profile built from Qloo tags of the games you loved.</p>
+        <p class="hint" data-hint="taste" hidden></p>
+      </div>
+      <div class="ask">
+        <div class="row">
+          <button type="button" class="btn primary" data-intent="postcredits">Post-credits pick</button>
+          <label class="lbl" for="focus-game">Just finished:</label>
+          <select id="focus-game"></select>
+        </div>
+        <p class="what">Films, series, music or books that carry the feeling of the game you just finished.</p>
+        <p class="hint" data-hint="postcredits" hidden></p>
+      </div>
+      <form class="ask" id="chat-form" autocomplete="off">
+        <label class="lbl" for="chat-in">Or ask anything</label>
+        <div class="row">
+          <input type="text" id="chat-in" placeholder="something like Hollow Knight but shorter" maxlength="300">
+          <button type="submit" class="btn primary" data-intent="chat">Ask</button>
+        </div>
+      </form>
+    </div>
+    <div class="ask-foot">
+      <label class="toggle"><input type="checkbox" id="raw-toggle"> Show raw events</label>
+      <button type="button" class="btn" id="cancel" hidden>Cancel</button>
+    </div>
+  </section>
+</div>
+
+<section id="transcript" aria-label="Answers" aria-live="polite">
+  <p class="welcome" id="welcome">Answers appear here, newest at the bottom.</p>
+</section>
+
+<footer>
+  <h2>How it works</h2>
+  <p>The page sends your question plus a snapshot of the list above to a Cloudflare Worker. The Worker runs an LLM tool loop over Qloo's <code>/search</code>, <code>/v2/insights</code> and <code>/v2/tags</code> endpoints, attaches IGDB covers, and streams each step back as server-sent events. Nothing is stored server-side; your list lives only in this browser.</p>
+  <p>Taste data by Qloo · Game data by IGDB</p>
+</footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+var ENDPOINT = 'https://mustplay-igdb.kbfoxtk.workers.dev/agent';
+var STORE_KEY = 'mustplay-scout-library-v1';
+var PRESETS = [
+  {loved:['Hades','Celeste','Hollow Knight'], want:['Dead Cells','Unpacking','Elden Ring','Stardew Valley']},
+  {loved:['The Last of Us','God of War','Red Dead Redemption 2'], want:['Ghost of Tsushima','Horizon Zero Dawn','Control','Disco Elysium']},
+  {loved:['Stardew Valley','Animal Crossing: New Horizons','A Short Hike'], want:['Spiritfarer','Unpacking','Slime Rancher','Celeste']}
+];
+var INTENT_LABEL = {pick:'Pick from my pile', discover:'Find something new', taste:'Taste profile', postcredits:'Post-credits', chat:'Ask'};
+var CROSS_LABEL = {movie:'Film', tv_show:'Series', artist:'Music', album:'Music', book:'Book', podcast:'Podcast'};
+
+// ---------- state ----------
+var lib = {nextId:1, loved:[], want:[]};
+var running = null; // {controller, turn}
+
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(lib)); }catch(e){} }
+function load(){
+  try{
+    var raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    var d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.loved) || !Array.isArray(d.want)) return false;
+    lib = {nextId: d.nextId|0 || 1, loved: d.loved.filter(validEntry), want: d.want.filter(validEntry)};
+    var max = 0; lib.loved.concat(lib.want).forEach(function(g){ if(g.id>max) max=g.id; });
+    if(lib.nextId <= max) lib.nextId = max+1;
+    return true;
+  }catch(e){ return false; }
+}
+function validEntry(g){ return g && typeof g.name==='string' && g.name.trim() && Number.isInteger(g.id); }
+function applyPreset(i){
+  var p = PRESETS[i]; var id = 1;
+  lib = {nextId:1, loved:[], want:[]};
+  p.loved.forEach(function(n){ lib.loved.push({id:id++, name:n, rating:5}); });
+  p.want.forEach(function(n){ lib.want.push({id:id++, name:n}); });
+  lib.nextId = id;
+  save(); render();
+}
+function norm(s){ return s.trim().toLowerCase().replace(/\s+/g,' '); }
+function addGame(section, name){
+  name = name.trim().replace(/\s+/g,' ');
+  if(!name) return false;
+  var key = norm(name);
+  var other = section==='loved' ? 'want' : 'loved';
+  if(lib[section].some(function(g){ return norm(g.name)===key; })) return false;
+  // moving between sections keeps the cached Qloo id
+  var moved = null;
+  lib[other] = lib[other].filter(function(g){ if(norm(g.name)===key){ moved=g; return false; } return true; });
+  var g = moved ? {id:moved.id, name:moved.name, qloo_id:moved.qloo_id} : {id:lib.nextId++, name:name};
+  if(section==='loved') g.rating = 5;
+  lib[section].push(g);
+  save(); render();
+  return true;
+}
+function removeGame(section, id){
+  lib[section] = lib[section].filter(function(g){ return g.id!==id; });
+  save(); render();
+}
+function toggleRating(id){
+  lib.loved.forEach(function(g){ if(g.id===id) g.rating = g.rating===5 ? 4 : 5; });
+  save(); render();
+}
+function librarySnapshot(){
+  var out = [];
+  lib.loved.forEach(function(g){
+    var e = {igdb_id:g.id, name:g.name, status:'completed', rating:g.rating||5};
+    if(g.qloo_id) e.qloo_id = g.qloo_id;
+    out.push(e);
+  });
+  lib.want.forEach(function(g){
+    var e = {igdb_id:g.id, name:g.name, status:'wantToPlay'};
+    if(g.qloo_id) e.qloo_id = g.qloo_id;
+    out.push(e);
+  });
+  return out;
+}
+function cacheResolved(map){
+  // returns how many entries got a Qloo id they didn't have before
+  if(!map) return 0;
+  var added = 0;
+  lib.loved.concat(lib.want).forEach(function(g){
+    var q = map[String(g.id)];
+    if(q && g.qloo_id!==q){ if(!g.qloo_id) added++; g.qloo_id = q; }
+  });
+  save(); renderChips();
+  return added;
+}
+
+// ---------- DOM helpers ----------
+function el(tag, attrs, kids){
+  var n = document.createElement(tag);
+  if(attrs) for(var k in attrs){
+    var v = attrs[k];
+    if(v==null || v===false) continue;
+    if(k==='class') n.className = v;
+    else if(k==='text') n.textContent = v;
+    else if(k.slice(0,2)==='on') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v===true ? '' : v);
+  }
+  (kids||[]).forEach(function(c){ if(c!=null) n.appendChild(typeof c==='string' ? document.createTextNode(c) : c); });
+  return n;
+}
+var $ = function(id){ return document.getElementById(id); };
+
+// ---------- library rendering ----------
+function renderChips(){
+  ['loved','want'].forEach(function(sec){
+    var box = $('chips-'+sec); box.textContent = '';
+    if(!lib[sec].length){
+      box.appendChild(el('p',{class:'empty', text: sec==='loved' ? 'Add a game you finished and loved.' : 'Add games you mean to play.'}));
+    }
+    lib[sec].forEach(function(g){
+      var kids = [];
+      if(g.qloo_id) kids.push(el('span',{class:'q', title:'Matched on Qloo', 'aria-hidden':'true'}));
+      kids.push(el('span',{class:'name', text:g.name, title:g.name}));
+      if(sec==='loved'){
+        kids.push(el('button',{type:'button', class:'stars', 'aria-label':'Rating '+(g.rating||5)+' of 5 for '+g.name+', press to switch to '+((g.rating||5)===5?4:5),
+          text:(g.rating||5)+'★', onclick:function(){ toggleRating(g.id); }}));
+      }
+      kids.push(el('button',{type:'button', 'aria-label':'Remove '+g.name, text:'×', onclick:function(){ removeGame(sec, g.id); }}));
+      box.appendChild(el('span',{class:'chip'}, kids));
+    });
+    $('count-'+sec).textContent = lib[sec].length ? lib[sec].length+(lib[sec].length===1?' game':' games') : '';
+  });
+}
+function renderFocus(){
+  var sel = $('focus-game'); var prev = sel.value;
+  sel.textContent = '';
+  if(!lib.loved.length){ sel.appendChild(el('option',{value:'', text:'(add a loved game first)'})); }
+  lib.loved.forEach(function(g){ sel.appendChild(el('option',{value:String(g.id), text:g.name})); });
+  if(prev && lib.loved.some(function(g){ return String(g.id)===prev; })) sel.value = prev;
+  else if(lib.loved.length) sel.value = String(lib.loved[lib.loved.length-1].id);
+}
+function guard(intent){
+  var loved = lib.loved.length, want = lib.want.length;
+  if(intent==='chat') return '';
+  if(!loved) return 'Add at least one game to "Games you loved" first. Scout needs a seed.';
+  if(intent==='pick' && !want) return 'Add at least one game to "Want to play" so Scout has a pile to pick from.';
+  return '';
+}
+function renderAsk(){
+  document.querySelectorAll('[data-intent]').forEach(function(b){
+    var g = guard(b.dataset.intent);
+    b.disabled = !!running || !!g;
+  });
+  document.querySelectorAll('[data-hint]').forEach(function(p){
+    var g = guard(p.dataset.hint);
+    p.textContent = g; p.hidden = !g;
+  });
+  $('focus-game').disabled = !!running || !lib.loved.length;
+  $('cancel').hidden = !running;
+}
+function render(){ renderChips(); renderFocus(); renderAsk(); }
+
+// ---------- answer rendering ----------
+function coverFor(item, label){
+  var src = item.cover_image_id ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/'+encodeURIComponent(item.cover_image_id)+'.jpg' : (item.image_url || '');
+  var box = el('div',{class:'cover'});
+  var ph = function(){ box.textContent=''; box.appendChild(el('div',{class:'ph', text:label})); };
+  if(src && /^https:\/\//.test(src)){
+    var img = el('img',{src:src, alt:'Cover of '+label, loading:'lazy', referrerpolicy:'no-referrer'});
+    img.addEventListener('error', ph);
+    box.appendChild(img);
+  } else ph();
+  return box;
+}
+var PLATFORM_ORDER = ['PC','Switch','PS5','PS4','Series X|S','XSX','XONE','Xbox One','Mac','iOS','Android','Linux'];
+function platformLine(list){
+  var rank = function(p){ var i = PLATFORM_ORDER.indexOf(p); return i<0 ? 99 : i; };
+  var sorted = list.map(String).slice().sort(function(a,b){ return rank(a)-rank(b); });
+  var shown = sorted.slice(0,4).join(', ');
+  return sorted.length>4 ? shown+' +'+(sorted.length-4) : shown;
+}
+function gameCard(it){
+  var metaBits = [];
+  if(it.year) metaBits.push(String(it.year));
+  if(Array.isArray(it.platforms) && it.platforms.length) metaBits.push(platformLine(it.platforms));
+  var badges = [];
+  if(it.in_library) badges.push(el('span',{class:'badge pile', text:'In your list'}));
+  var info = [el('h3',{text:it.name||'Untitled'})];
+  if(metaBits.length) info.push(el('div',{class:'meta', text:metaBits.join(' · ')}));
+  if(badges.length) info.push(el('div',{class:'badges'}, badges));
+  if(typeof it.affinity==='number'){
+    var pct = Math.max(0, Math.min(1, it.affinity));
+    info.push(el('div',{class:'aff', title:'Qloo affinity '+it.affinity.toFixed(3)},[
+      el('span',{text:'Qloo affinity'}), el('span',{class:'bar'},[el('i',{style:'width:'+(pct*100).toFixed(0)+'%'})]), el('span',{text:pct.toFixed(2)})
+    ]));
+  }
+  var kids = [coverFor(it, it.name||'?'), el('div',{style:'min-width:0'}, info)];
+  if(it.reason) kids.push(el('p',{class:'reason', text:it.reason}));
+  if(Array.isArray(it.tags) && it.tags.length) kids.push(el('div',{class:'tags'}, it.tags.slice(0,6).map(function(t){ return el('span',{class:'tag', text:String(t)}); })));
+  return el('article',{class:'card'}, kids);
+}
+function crossCard(it){
+  var label = CROSS_LABEL[it.type] || (it.type ? String(it.type).replace(/_/g,' ') : 'Pick');
+  var info = [el('div',{class:'badges'},[el('span',{class:'badge', text:label})]), el('h3',{text:it.name||'Untitled'})];
+  if(it.year) info.push(el('div',{class:'meta', text:String(it.year)}));
+  var kids = [coverFor(it, it.name||label), el('div',{style:'min-width:0'}, info)];
+  if(it.reason) kids.push(el('p',{class:'reason', text:it.reason}));
+  if(Array.isArray(it.tags) && it.tags.length) kids.push(el('div',{class:'tags'}, it.tags.slice(0,6).map(function(t){ return el('span',{class:'tag', text:String(t)}); })));
+  return el('article',{class:'card'}, kids);
+}
+function tasteCard(ev){
+  var kids = [el('h3',{class:'block-title', text:'Your taste'})];
+  if(ev.summary) kids.push(el('p',{class:'summary', text:ev.summary}));
+  if(Array.isArray(ev.tags) && ev.tags.length){
+    var vals = ev.tags.map(function(t){ return typeof t.affinity==='number' ? t.affinity : 0.5; });
+    var mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+    kids.push(el('div',{class:'cloud', role:'list', 'aria-label':'Taste tags'}, ev.tags.map(function(t, i){
+      var a = mx>mn ? (vals[i]-mn)/(mx-mn) : 1;
+      return el('span',{role:'listitem', title:typeof t.affinity==='number' ? 'affinity '+t.affinity.toFixed(2) : null,
+        style:'font-size:'+(13+a*13).toFixed(1)+'px;opacity:'+(0.5+a*0.5).toFixed(2), text:t.name||String(t)});
+    })));
+  }
+  return el('section',{class:'taste'}, kids);
+}
+function friendlyError(text){
+  var t = String(text||'');
+  if(/^llm_quota/i.test(t)) return "The agent's daily AI budget is used up, try again tomorrow.";
+  if(/^llm/i.test(t)) return 'The language model is busy, try again in a minute.';
+  if(/^qloo/i.test(t)) return "Qloo didn't answer, try again.";
+  return 'Something went wrong, please try again.';
+}
+function errorBlock(friendly, raw){
+  var kids = [el('strong',{text:friendly})];
+  if(raw) kids.push(el('details',null,[el('summary',{text:'Details'}), el('pre',{text:raw})]));
+  return el('div',{class:'err', role:'alert'}, kids);
+}
+
+function newTurn(intent, question){
+  var w = $('welcome'); if(w) w.remove();
+  var t = {};
+  t.state = el('span',{class:'state', text:'thinking…'});
+  t.spinner = el('span',{class:'spin', 'aria-hidden':'true'});
+  t.timeline = el('ol',{class:'timeline', 'aria-label':'Agent steps'});
+  t.body = el('div',{style:'display:grid;gap:14px;min-width:0'});
+  t.rawPre = el('pre');
+  t.rawCount = el('span',{text:'0'});
+  var answer = el('div',{class:'answer'},[
+    el('div',{class:'answer-head'},[t.spinner, el('span',{class:'who', text:'Scout'}), t.state]),
+    t.timeline, t.body,
+    el('div',{class:'raw'},[el('h4',null,['Raw SSE events (', t.rawCount, ')']), t.rawPre])
+  ]);
+  t.root = el('div',{class:'turn'},[
+    el('div',{class:'q-bubble'},[el('span',{class:'intent', text:INTENT_LABEL[intent]||intent}), question]),
+    answer
+  ]);
+  t.start = performance.now();
+  t.raw = [];
+  t.liveRow = null;
+  $('transcript').appendChild(t.root);
+  t.root.scrollIntoView({behavior:'smooth', block:'start'});
+  t.ticker = setInterval(function(){ t.state.textContent = 'thinking… '+elapsed(t)+'s'; }, 200);
+  return t;
+}
+function elapsed(t){ return ((performance.now()-t.start)/1000).toFixed(1); }
+function nearBottom(){ return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 220; }
+function stick(fn){ var nb = nearBottom(); fn(); if(nb) window.scrollTo({top:document.documentElement.scrollHeight, behavior:'smooth'}); }
+function addStep(t, text, cls){
+  if(t.liveRow) t.liveRow.classList.remove('live');
+  var li = el('li',{class:cls||'live'},[el('span',{class:'t', text:'+'+elapsed(t)+'s'}), el('span',{class:'s', text:text})]);
+  t.timeline.appendChild(li);
+  t.liveRow = cls ? null : li;
+}
+function finishTurn(t, label, cls){
+  clearInterval(t.ticker);
+  if(t.liveRow){ t.liveRow.classList.remove('live'); t.liveRow = null; }
+  t.spinner.remove();
+  t.state.textContent = label+' in '+elapsed(t)+'s';
+  addStep(t, label, cls);
+}
+
+function handleEvent(t, ev){
+  switch(ev.type){
+    case 'status': addStep(t, ev.text || '…'); break;
+    case 'resolved':
+      var added = cacheResolved(ev.map);
+      if(added) addStep(t, 'Matched '+added+(added===1?' game':' games')+' from your list to Qloo entities', 'end');
+      break;
+    case 'games':
+      var items = Array.isArray(ev.items) ? ev.items : [];
+      var wrap = el('div',null,[el('h3',{class:'block-title', text:ev.title || 'Games'})]);
+      wrap.appendChild(items.length ? el('div',{class:'cards'}, items.map(gameCard)) : el('p',{class:'empty', text:'No games came back for this one.'}));
+      t.body.appendChild(wrap); break;
+    case 'taste': t.body.appendChild(tasteCard(ev)); break;
+    case 'crossover':
+      var cx = Array.isArray(ev.items) ? ev.items : [];
+      var cw = el('div',null,[el('h3',{class:'block-title', text:ev.title || 'After the credits'})]);
+      cw.appendChild(cx.length ? el('div',{class:'cards'}, cx.map(crossCard)) : el('p',{class:'empty', text:'Nothing came back for this one.'}));
+      t.body.appendChild(cw); break;
+    case 'message': if(ev.text) t.body.appendChild(el('div',{class:'msg', text:ev.text})); break;
+    case 'error': t.hadError = true; t.body.appendChild(errorBlock(friendlyError(ev.text), ev.text||'')); break;
+    case 'done': t.done = true; break;
+    default: break; // unknown events still show in the raw log
+  }
+}
+
+// ---------- SSE over fetch ----------
+function ask(intent, question, extra){
+  if(running) return;
+  var body = {intent:intent, messages:[{role:'user', content:question}], library:librarySnapshot()};
+  if(extra && extra.focus) body.focus_igdb_id = extra.focus;
+  var t = newTurn(intent, question);
+  var controller = new AbortController();
+  running = {controller:controller, turn:t};
+  renderAsk();
+  addStep(t, 'Sent the question and '+body.library.length+' games to the agent');
+
+  fetch(ENDPOINT, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body), signal:controller.signal})
+  .then(function(res){
+    if(!res.ok || !res.body){
+      return res.text().then(function(txt){ throw {http:res.status, text:txt}; });
+    }
+    var reader = res.body.getReader();
+    var dec = new TextDecoder();
+    var buf = '';
+    function flush(block){
+      var data = block.split(/\r?\n/).filter(function(l){ return l.indexOf('data:')===0; })
+        .map(function(l){ return l.slice(5).replace(/^ /,''); }).join('\n');
+      if(!data) return;
+      t.raw.push(data);
+      t.rawPre.textContent += (t.rawPre.textContent ? '\n' : '') + data;
+      t.rawCount.textContent = String(t.raw.length);
+      var ev; try{ ev = JSON.parse(data); }catch(e){ return; }
+      stick(function(){ handleEvent(t, ev); });
+    }
+    function pump(){
+      return reader.read().then(function(r){
+        if(r.done){ buf += dec.decode(); if(buf.trim()) flush(buf); return; }
+        buf += dec.decode(r.value, {stream:true});
+        var parts = buf.split(/\r?\n\r?\n/);
+        buf = parts.pop();
+        parts.forEach(flush);
+        return pump();
+      });
+    }
+    return pump();
+  })
+  .then(function(){
+    if(t.hadError) finishTurn(t, 'Stopped with an error', 'bad');
+    else if(t.done) finishTurn(t, 'Done', 'end');
+    else { stick(function(){ t.body.appendChild(errorBlock('The connection closed before Scout finished. Try again.', 'stream ended without a done event')); }); finishTurn(t, 'Interrupted', 'bad'); }
+  })
+  .catch(function(err){
+    if(err && err.name==='AbortError'){ finishTurn(t, 'Cancelled', 'bad'); return; }
+    var raw = err && err.http ? 'HTTP '+err.http+': '+(err.text||'').slice(0,800) : String(err && err.message || err);
+    var msg = 'Something went wrong, please try again.';
+    if(err && err.http){ try{ var j = JSON.parse(err.text); if(j && (j.error||j.text)) msg = friendlyError(j.error||j.text); }catch(e){} }
+    else msg = "Couldn't reach the agent. Check your connection and try again.";
+    stick(function(){ t.body.appendChild(errorBlock(msg, raw)); });
+    finishTurn(t, 'Failed', 'bad');
+  })
+  .then(function(){ running = null; renderAsk(); });
+}
+
+// ---------- wiring ----------
+document.querySelectorAll('[data-preset]').forEach(function(b){
+  b.addEventListener('click', function(){ applyPreset(+b.dataset.preset); });
+});
+$('clear-lib').addEventListener('click', function(){ lib = {nextId:lib.nextId, loved:[], want:[]}; save(); render(); });
+document.querySelectorAll('form.addrow').forEach(function(f){
+  f.addEventListener('submit', function(e){
+    e.preventDefault();
+    var input = f.querySelector('input');
+    if(addGame(f.dataset.section, input.value)) input.value = '';
+    input.focus();
+  });
+});
+document.querySelector('[data-intent="pick"]').addEventListener('click', function(){ ask('pick', 'What should I play next from my pile?'); });
+document.querySelector('[data-intent="discover"]').addEventListener('click', function(){
+  var c = $('discover-extra').value.trim();
+  ask('discover', c ? 'Find me something new to play: '+c : 'Find me something new to play.');
+});
+$('discover-extra').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); var b=document.querySelector('[data-intent="discover"]'); if(!b.disabled) b.click(); } });
+document.querySelector('[data-intent="taste"]').addEventListener('click', function(){ ask('taste', "What's my taste?"); });
+document.querySelector('[data-intent="postcredits"]').addEventListener('click', function(){
+  var id = parseInt($('focus-game').value, 10);
+  var g = lib.loved.filter(function(x){ return x.id===id; })[0];
+  if(!g) return;
+  ask('postcredits', 'I just finished '+g.name+'. What should I watch or listen to next?', {focus:g.id});
+});
+$('chat-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var q = $('chat-in').value.trim();
+  if(!q || running) { $('chat-in').focus(); return; }
+  $('chat-in').value = '';
+  ask('chat', q);
+});
+$('cancel').addEventListener('click', function(){ if(running) running.controller.abort(); });
+$('raw-toggle').addEventListener('change', function(e){ $('transcript').classList.toggle('show-raw', e.target.checked); });
+
+if(!load() || (!lib.loved.length && !lib.want.length && !localStorageTouched())) applyPreset(0); else render();
+function localStorageTouched(){ try{ return localStorage.getItem(STORE_KEY)!==null; }catch(e){ return false; } }
+})();
+</script>
+</body>
+</html>
